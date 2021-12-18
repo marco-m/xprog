@@ -1,82 +1,104 @@
 package main
 
 import (
-	"flag"
 	"fmt"
+	"io"
 	"os"
+	"os/exec"
+
+	"github.com/alexflint/go-arg"
 )
 
-var (
-	flagSet = flag.NewFlagSet("xprog", flag.ContinueOnError)
-	verbose = flagSet.Bool("verbose", false, "verbose output")
-)
-
-func usage() {
-	fmt.Fprintf(os.Stderr, `
-Usage:
-
-    go test -exec='xprog [docker run flags] image:tag' [test flags]
-
-You can also run it directly, if you must:
-
-    xprog image:tag [docker flags] pkg.test [test flags]
-
-`)
-	flagSet.PrintDefaults()
+type cli struct {
+	Root
+	Help        *HelpCmd        `arg:"subcommand:help" help:"display extensive help"`
+	Passthrough *PassthroughCmd `arg:"subcommand:passthrough" help:"run the test binary directly on the host"`
+	Ssh         *SshCmd         `arg:"subcommand:ssh" help:"upload and run test binary via ssh"`
+	// proposed new API for go-arg:
+	// Extra   []string `arg:"end-of-options"`
+	// instead of:
+	// Extra []string `arg:"positional"`
 }
 
-type usageErr string
-
-func (ue usageErr) Error() string {
-	return string(ue)
+type Root struct {
+	Verbose bool `arg:"-v,--verbose" help:"verbosity level"`
+	//
+	Out io.Writer `arg:"-"`
 }
 
-type flagErr string
-
-func (fe flagErr) Error() string {
-	return string(fe)
+type Common struct {
+	TestBinary string   `arg:"required,positional" help:"path to the test binary created by go test"`
+	GoTestFlag []string `arg:"positional" help:"flags for go test; put '-- ' before the first (to signal end-of-options)"`
 }
+
+type SshCmd struct {
+	Common
+}
+
+type PassthroughCmd struct {
+	Common
+}
+
+type HelpCmd struct {
+}
+
+const help = `xprog -- a test runner for "go test -exec"
+
+Generic usage from go test:
+
+    go test -exec='xprog <command> [opts] --' <go-packages> [go-test-flags]
+
+Cross-compile the tests and run them on the target OS, connect via SSH:
+
+    GOOS=linux go test -exec='xprog ssh [opts] --' <go-packages> [go-test-flags]
+
+Note: to see xprog output, pass -v both to xprog and go test:
+
+    go test -v -exec='xprog -v <command> [opts] --' <go-packages> [go-test-flags]
+`
 
 func main() {
-	os.Exit(main2())
-}
-
-func main2() int {
-	flagSet.Usage = usage
-	err := main3()
-
-	// runtime: no error
-	if err == nil {
-		return 0
+	args := cli{
+		Root: Root{Out: os.Stderr},
 	}
-
-	// CLI parsing errors
-	switch err.(type) {
-	case usageErr:
+	arg.MustParse(&args)
+	p := arg.MustParse(&args)
+	if p.Subcommand() == nil {
+		p.Fail("missing subcommand")
+	}
+	if err := main2(args); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		flagSet.Usage()
-		return 2
-	case flagErr:
-		return 2
+		os.Exit(1)
 	}
-
-	// runtime: error
-	fmt.Fprintln(os.Stderr, err)
-	return 1
 }
 
-func main3() error {
-	if err := flagSet.Parse(os.Args[1:]); err != nil {
-		return flagErr(err.Error())
+func main2(args cli) error {
+	switch {
+	case args.Help != nil:
+		return args.Help.Run(args.Root)
+	case args.Passthrough != nil:
+		return args.Passthrough.Run(args.Root)
+	case args.Ssh != nil:
+		// return sshCmd()
+		return fmt.Errorf("unimplemented")
+	default:
+		return fmt.Errorf("unwired command")
 	}
-	// args := flagSet.Args()
+}
 
-	if *verbose {
-		fmt.Fprintln(os.Stderr, "args:")
-		for _, a := range os.Args {
-			fmt.Fprintln(os.Stderr, "  ", a)
-		}
-	}
-
+func (self HelpCmd) Run(root Root) error {
+	fmt.Fprintln(root.Out, help)
 	return nil
+}
+
+func (self PassthroughCmd) Run(root Root) error {
+	if root.Verbose {
+		fmt.Fprintln(root.Out, "Run:", self.TestBinary, self.GoTestFlag)
+	}
+	cmd := exec.Command(self.TestBinary, self.GoTestFlag...)
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	return cmd.Run()
 }
