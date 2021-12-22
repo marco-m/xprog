@@ -5,9 +5,6 @@ import (
 	"testing"
 )
 
-func TestA(t *testing.T) {
+func TestForXprog(t *testing.T) {
 	t.Log("OS:", runtime.GOOS)
-}
-
-func TestB(t *testing.T) {
 }

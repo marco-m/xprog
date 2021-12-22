@@ -1,0 +1,36 @@
+# https://taskfile.dev
+
+version: '3'
+
+vars:
+
+tasks:
+  build:
+    desc: Build all
+    cmds:
+      - go build -o bin/xprog .
+
+  test:unit:
+    desc: Run the unit tests
+    cmds:
+      - go test -count=1 -short -cover ./...
+
+  test:vm:
+    desc: Run the VM-based tests
+    cmds:
+      - go test -count=1 -run 'Test.*VM$' -cover ./...
+
+  test:all:
+    desc: Run all the tests (get all coverage)
+    cmds:
+      - go test -count=1 -coverprofile=coverage.out ./...
+
+  browser:
+    desc: "Show code coverage in browser (usage: task test:all browser)"
+    cmds:
+      - go tool cover -html=coverage.out
+
+  clean:
+    desc: Remove the build artifacts
+    cmds:
+      - rm -rf bin
