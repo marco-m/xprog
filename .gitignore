@@ -1,1 +1,5 @@
+TODO.md
 bin/
+coverage.out
+ssh_config.vagrant
+.vagrant/
