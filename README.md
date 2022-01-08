@@ -53,7 +53,7 @@ Generate the ssh_config file:
 
 Cross-compile the tests and run them on the target OS, using `xprog ssh`:
 
-    $ GOOS=linux go test -exec='xprog -v ssh --sshconfig ssh_config.vagrant --' . -run TestForXprog -v
+    $ GOOS=linux go test -exec='xprog ssh --sshconfig ssh_config.vagrant --' . -run TestForXprog -v
         runner_test.go:9: OS: linux
 
 

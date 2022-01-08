@@ -8,12 +8,14 @@ import (
 	"os/exec"
 
 	"github.com/alexflint/go-arg"
+	"github.com/hashicorp/go-hclog"
 )
 
 var version = "unknown" // filled by the linker
 
 type Opts struct {
-	Root
+	Verbose bool `arg:"-v,--verbose" help:"verbosity level"`
+	//
 	Help   *HelpCmd   `arg:"subcommand:help" help:"display extensive help"`
 	Direct *DirectCmd `arg:"subcommand:direct" help:"run the test binary directly on the host"`
 	Ssh    *SshCmd    `arg:"subcommand:ssh" help:"upload and run the test binary on SSH target"`
@@ -21,12 +23,9 @@ type Opts struct {
 	// Extra   []string `arg:"end-of-options"`
 	// instead of:
 	// Extra []string `arg:"positional"`
-}
-
-type Root struct {
-	Verbose bool `arg:"-v,--verbose" help:"verbosity level"`
 	//
-	Out io.Writer `arg:"-"`
+	out    io.Writer
+	logger hclog.Logger
 }
 
 type CommonArgs struct {
@@ -60,7 +59,7 @@ func main() {
 }
 
 func mainInt(out io.Writer, args []string) int {
-	opts := Opts{Root: Root{Out: out}}
+	var opts Opts
 	err := parse(out, args, arg.Config{}, &opts)
 	if err == parseOK {
 		return 0
@@ -68,6 +67,15 @@ func mainInt(out io.Writer, args []string) int {
 	if err != nil {
 		fmt.Fprintln(out, "xprog:", err)
 		return 1
+	}
+
+	opts.out = out
+	opts.logger = hclog.New(&hclog.LoggerOptions{
+		Name:   "xprog",
+		Output: out,
+	})
+	if opts.Verbose {
+		opts.logger.SetLevel(hclog.Debug)
 	}
 
 	if err := runCommand(opts); err != nil {
@@ -112,24 +120,24 @@ func parse(out io.Writer, args []string, config arg.Config, dests ...interface{}
 func runCommand(opts Opts) error {
 	switch {
 	case opts.Help != nil:
-		return opts.Help.Run(opts.Root)
+		return opts.Help.Run(opts)
 	case opts.Direct != nil:
-		return opts.Direct.Run(opts.Root)
+		return opts.Direct.Run(opts)
 	case opts.Ssh != nil:
-		return opts.Ssh.Run(opts.Root)
+		return opts.Ssh.Run(opts)
 	default:
 		return fmt.Errorf("unwired command")
 	}
 }
 
-func (self HelpCmd) Run(root Root) error {
-	fmt.Fprintln(root.Out, help)
+func (self HelpCmd) Run(opts Opts) error {
+	fmt.Fprintln(opts.out, help)
 	return nil
 }
 
-func (self DirectCmd) Run(root Root) error {
-	if root.Verbose {
-		fmt.Fprintln(root.Out, "direct:",
+func (self DirectCmd) Run(opts Opts) error {
+	if opts.Verbose {
+		fmt.Fprintln(opts.out, "direct:",
 			"testbinary:", self.TestBinary, "gotestflag:", self.GoTestFlag)
 	}
 	cmd := exec.Command(self.TestBinary, self.GoTestFlag...)

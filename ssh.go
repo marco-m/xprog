@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/tmc/scp"
 	"golang.org/x/crypto/ssh"
@@ -16,52 +17,66 @@ import (
 type SshCmd struct {
 	CommonArgs
 	SshConfig string `arg:"required" help:"path to a ssh_config file"`
+	//
+	opts   Opts
+	sshCfg ssh.ClientConfig
+	addr   string
 }
 
-func (self SshCmd) Run(root Root) error {
+func (self SshCmd) Run(opts Opts) error {
+	self.opts = opts
+	if err := self.prepare(); err != nil {
+		return err
+	}
+	return self.execute()
+}
+
+func (self *SshCmd) prepare() error {
 	rd, err := os.Open(self.SshConfig)
 	if err != nil {
-		return fmt.Errorf("ssh_config: %s", err)
+		return fmt.Errorf("sshRun: ssh_config: %s", err)
 	}
 	defer rd.Close()
 	sshConf, err := parseSshConfig(rd)
 	if err != nil {
-		return err
+		return fmt.Errorf("sshRun: %s", err)
 	}
 	// Currently we always take the first Host block.
 	host := sshConf[0]
 
 	privateKeyPath, err := host.Get("IdentityFile")
 	if err != nil {
-		return err
+		return fmt.Errorf("sshRun: %s", err)
 	}
 
 	key, err := os.ReadFile(privateKeyPath)
 	if err != nil {
-		return fmt.Errorf("unable to read private key: %s", err)
+		return fmt.Errorf("sshRun: unable to read private key: %s", err)
 	}
 
 	// Create the Signer for this private key.
 	signer, err := ssh.ParsePrivateKey(key)
 	if err != nil {
-		return fmt.Errorf("unable to parse private key: %s", err)
+		return fmt.Errorf("sshRun: unable to parse private key: %s", err)
 	}
 
 	user, err := host.Get("User")
 	if err != nil {
-		return err
+		return fmt.Errorf("sshRun: %s", err)
 	}
 
 	strictHostKeyChecking, err := host.Get("StrictHostKeyChecking")
 	if err != nil {
-		return err
+		return fmt.Errorf("sshRun: %s", err)
 	}
 	if strictHostKeyChecking != "no" {
-		return fmt.Errorf("StrictHostKeyChecking=%s but we support only 'no'", strictHostKeyChecking)
+		return fmt.Errorf("sshRun: StrictHostKeyChecking=%s but we support only 'no'",
+			strictHostKeyChecking)
 	}
 
-	sshCfg := &ssh.ClientConfig{
-		User: user,
+	self.sshCfg = ssh.ClientConfig{
+		Timeout: 1 * time.Second,
+		User:    user,
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(signer)},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
@@ -69,44 +84,59 @@ func (self SshCmd) Run(root Root) error {
 
 	hostName, err := host.Get("HostName")
 	if err != nil {
-		return err
+		return fmt.Errorf("sshRun: %s", err)
 	}
 	port, err := host.Get("Port")
 	if err != nil {
-		return err
+		return fmt.Errorf("sshRun: %s", err)
 	}
 
-	addr := fmt.Sprintf("%s:%s", hostName, port)
-	conn, err := ssh.Dial("tcp", addr, sshCfg)
+	self.addr = fmt.Sprintf("%s:%s", hostName, port)
+
+	return nil
+}
+
+func (self SshCmd) execute() error {
+	log := self.opts.logger
+
+	log.Debug("ssh.Dial", "addr", self.addr)
+	conn, err := ssh.Dial("tcp", self.addr, &self.sshCfg)
 	if err != nil {
-		return fmt.Errorf("ssh: %s", err)
+		return fmt.Errorf("sshRun: %s", err)
 	}
 	defer conn.Close()
 
+	log.Debug("create ssh session")
 	sess, err := conn.NewSession()
 	if err != nil {
-		return fmt.Errorf("ssh session: %s", err)
+		return fmt.Errorf("sshRun: ssh session: %s", err)
 	}
 	defer sess.Close()
 	sess.Stdin = os.Stdin
 	sess.Stdout = os.Stdout
 	sess.Stderr = os.Stderr
 
+	log.Debug("create scp session")
 	scpSess, err := conn.NewSession()
 	if err != nil {
-		return fmt.Errorf("scp session: %s", err)
+		return fmt.Errorf("sshRun: scp session: %s", err)
 	}
 	defer scpSess.Close()
 
 	dstTestBinary := "./" + path.Base(self.TestBinary)
+	log.Debug("scp", "src", self.TestBinary, "dst", dstTestBinary)
 	err = scp.CopyPath(self.TestBinary, dstTestBinary, scpSess)
 	if err != nil {
-		return fmt.Errorf("scp copy: %s", err)
+		return fmt.Errorf("sshRun: scp copy: %s", err)
 	}
 
 	cmd := []string{dstTestBinary}
 	cmd = append(cmd, self.GoTestFlag...)
-	return sess.Run(strings.Join(cmd, " "))
+	log.Debug("ssh execute", "cmd", cmd)
+	if err := sess.Run(strings.Join(cmd, " ")); err != nil {
+		return fmt.Errorf("sshRun: %s", err)
+	}
+	return nil
 }
 
 // Host is a `Host` block in a ssh_config file.

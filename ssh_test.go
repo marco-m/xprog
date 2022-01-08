@@ -1,10 +1,14 @@
 package main
 
 import (
+	"net"
+	"os"
 	"strings"
 	"testing"
 
+	gliderssh "github.com/gliderlabs/ssh"
 	"github.com/google/go-cmp/cmp"
+	"github.com/hashicorp/go-hclog"
 )
 
 func TestParseSshConfigSuccess(t *testing.T) {
@@ -209,4 +213,61 @@ func TestHostGetDef(t *testing.T) {
 	if have, want := host.GetDef("X", "default"), "default"; have != want {
 		t.Errorf("get non-existing key: have: %s; want: %s", have, want)
 	}
+}
+
+func TestSshCmdRunMock(t *testing.T) {
+	server := gliderssh.Server{}
+	if err := gliderssh.HostKeyFile("testdata/host_key")(&server); err != nil {
+		t.Fatal(err)
+	}
+	listener, err := net.Listen("tcp", "127.0.0.1:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	server.Handler = func(sess gliderssh.Session) {
+		t.Log("raw command:", sess.RawCommand())
+		if err := sess.Exit(0); err != nil {
+			t.Log("sess.Exit:", err)
+		}
+	}
+	defer server.Close()
+
+	done := make(chan bool)
+	go func() {
+		err, want := server.Serve(listener), gliderssh.ErrServerClosed
+		if err != want {
+			t.Errorf("ssh server termination: have: %s; want: %s", err, want)
+		}
+		done <- true
+	}()
+
+	var opts Opts
+	opts.out = os.Stderr
+	opts.logger = hclog.New(&hclog.LoggerOptions{
+		Name:   "xprog",
+		Output: opts.out,
+	})
+	if testing.Verbose() {
+		opts.logger.SetLevel(hclog.Debug)
+	}
+
+	sut := SshCmd{
+		CommonArgs: CommonArgs{TestBinary: "testdata/testbinary"},
+		SshConfig:  "testdata/ssh_config.vagrant",
+		opts:       opts,
+	}
+
+	if err := sut.prepare(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Override the address with the test server.
+	sut.addr = listener.Addr().String()
+
+	if err := sut.execute(); err != nil {
+		t.Fatal(err)
+	}
+
+	server.Close()
+	<-done
 }
