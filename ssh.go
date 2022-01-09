@@ -16,7 +16,7 @@ import (
 
 type SshCmd struct {
 	CommonArgs
-	SshConfig string `arg:"required" help:"path to a ssh_config file"`
+	SshConfig string `arg:"--cfg,required" help:"path to a ssh_config file"`
 	//
 	opts   Opts
 	sshCfg ssh.ClientConfig

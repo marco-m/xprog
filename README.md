@@ -4,15 +4,15 @@ xprog -- a test runner for go test -exec.
 
 Generic usage from go test:
 
-    go test -exec='xprog <command> [opts] --' <go-packages> [go-test-flags]
+    go test -exec="xprog <command> [opts] --" <go-packages> [go-test-flags]
 
 Cross-compile the tests and run them on the target OS, connect via SSH:
 
-    GOOS=linux go test -exec='xprog ssh [opts] --' <go-packages> [go-test-flags]
+    GOOS=linux go test -exec="xprog ssh [opts] --" <go-packages> [go-test-flags]
 
 To see xprog output, pass -v both to xprog and go test:
 
-    go test -v -exec='xprog -v <command> [opts] --' <go-packages> [go-test-flags]
+    go test -v -exec="xprog -v <command> [opts] --" <go-packages> [go-test-flags]
 
 
 ## Limitations
@@ -38,7 +38,7 @@ File [runner_test.go](runner_test.go) contains:
 
 Use `xprog direct` to run the `TestForXprog` test on the host (in this case `xprog` is not even needed):
 
-    $ go test -exec='xprog -v direct --' . -run TestForXprog -v
+    $ go test -exec="xprog -v direct --" . -run TestForXprog -v
         runner_test.go:9: OS: darwin
 
 ### xprog ssh
@@ -53,8 +53,17 @@ Generate the ssh_config file:
 
 Cross-compile the tests and run them on the target OS, using `xprog ssh`:
 
-    $ GOOS=linux go test -exec='xprog ssh --sshconfig ssh_config.vagrant --' . -run TestForXprog -v
+    $ GOOS=linux go test -exec="xprog ssh --cfg $PWD/ssh_config.vagrant --" ./... -run TestForXprog -v
         runner_test.go:9: OS: linux
+
+Note
+
+"go test" will execute xprog in the directory (or directories) corresponding to the package(s) specified to the "go test" invocation. For example:
+
+    $ go test -exec="xprog ssh --cfg $PWD/ssh_config.vagrant --" ./foo
+
+will run xprog in directory `./foo`. This is why it is important to specify the ssh_config with an absolute path: `--cfg $PWD/ssh_config.vagrant`, so that it will be found no matter the xprog working directory.
+
 
 
 ## License

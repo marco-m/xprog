@@ -43,15 +43,15 @@ const help = `xprog -- a test runner for go test -exec.
 
 Generic usage from go test:
 
-    go test -exec='xprog <command> [opts] --' <go-packages> [go-test-flags]
+    go test -exec="xprog <command> [opts] --" <go-packages> [go-test-flags]
 
 Cross-compile the tests and run them on the target OS, connect via SSH:
 
-    GOOS=linux go test -exec='xprog ssh [opts] --' <go-packages> [go-test-flags]
+    GOOS=linux go test -exec="xprog ssh [opts] --" <go-packages> [go-test-flags]
 
 To see xprog output, pass -v both to xprog and go test:
 
-    go test -v -exec='xprog -v <command> [opts] --' <go-packages> [go-test-flags]
+    go test -v -exec="xprog -v <command> [opts] --" <go-packages> [go-test-flags]
 `
 
 func main() {
@@ -118,6 +118,12 @@ func parse(out io.Writer, args []string, config arg.Config, dests ...interface{}
 }
 
 func runCommand(opts Opts) error {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("getting cwd: %s", err)
+	}
+	opts.logger.Debug("started", "cwd", cwd)
+
 	switch {
 	case opts.Help != nil:
 		return opts.Help.Run(opts)
