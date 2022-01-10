@@ -271,3 +271,11 @@ func TestSshCmdRunMock(t *testing.T) {
 	server.Close()
 	<-done
 }
+
+// A bit dummy, I am unsure if we can do better.
+func TestBasicVM(t *testing.T) {
+	have, want := goos(), "linux"
+	if have != want {
+		t.Errorf("goos: have: %s; want %s", have, want)
+	}
+}

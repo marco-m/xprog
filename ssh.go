@@ -2,15 +2,17 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path"
+	"runtime"
 	"strings"
 	"time"
 
-	"github.com/tmc/scp"
+	"github.com/bramvdbogaerde/go-scp"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -32,6 +34,9 @@ func (self SshCmd) Run(opts Opts) error {
 }
 
 func (self *SshCmd) prepare() error {
+	log := self.opts.logger
+	log.Debug("ssh", "testbinary:", self.TestBinary,
+		"gotestflag:", self.GoTestFlag)
 	rd, err := os.Open(self.SshConfig)
 	if err != nil {
 		return fmt.Errorf("sshRun: ssh_config: %s", err)
@@ -106,36 +111,81 @@ func (self SshCmd) execute() error {
 	}
 	defer conn.Close()
 
+	log.Debug("create scp session 1")
+	scpClient, err := scp.NewClientBySSH(conn)
+	if err != nil {
+		return fmt.Errorf("sshRun: create scp session 1: %s", err)
+	}
+
+	dstTestBinary := "./" + path.Base(self.TestBinary)
+	log.Debug("scp TestBinary host -> target",
+		"src", self.TestBinary, "dst", dstTestBinary)
+	fi, err := os.Open(self.TestBinary)
+	if err != nil {
+		return fmt.Errorf("sshRun: scp TestBinary: %s", err)
+	}
+	defer fi.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := scpClient.CopyFromFile(ctx, *fi, dstTestBinary, "0755"); err != nil {
+		return fmt.Errorf("sshRun: scp copy: %s", err)
+	}
+
+	// If "go test -coverprofile", adapt accordingly
+	var coverprofile, tgtCoverprofile string
+	for i, flag := range self.GoTestFlag {
+		tokens := strings.Split(flag, "=")
+		if tokens[0] == "-test.coverprofile" {
+			coverprofile = tokens[1]
+			tgtCoverprofile = path.Base(coverprofile)
+			self.GoTestFlag[i] = "-test.coverprofile=" + tgtCoverprofile
+			break
+		}
+	}
+
 	log.Debug("create ssh session")
 	sess, err := conn.NewSession()
 	if err != nil {
-		return fmt.Errorf("sshRun: ssh session: %s", err)
+		return fmt.Errorf("sshRun: create ssh session: %s", err)
 	}
 	defer sess.Close()
 	sess.Stdin = os.Stdin
 	sess.Stdout = os.Stdout
 	sess.Stderr = os.Stderr
 
-	log.Debug("create scp session")
-	scpSess, err := conn.NewSession()
-	if err != nil {
-		return fmt.Errorf("sshRun: scp session: %s", err)
+	cmd := []string{dstTestBinary}
+	cmd = append(cmd, self.GoTestFlag...)
+	log.Debug("ssh execute TestBinary", "cmd", cmd)
+	if err := sess.Run(strings.Join(cmd, " ")); err != nil {
+		return fmt.Errorf("sshRun: execute TestBinary: %s", err)
 	}
-	defer scpSess.Close()
 
-	dstTestBinary := "./" + path.Base(self.TestBinary)
-	log.Debug("scp", "src", self.TestBinary, "dst", dstTestBinary)
-	err = scp.CopyPath(self.TestBinary, dstTestBinary, scpSess)
+	// If no coverprofile, we are done.
+	if coverprofile == "" {
+		return nil
+	}
+
+	// Copy the coverprofile from target to host
+
+	log.Debug("scp coverprofile target -> host",
+		"src", tgtCoverprofile, "dst", coverprofile)
+	fi, err = os.Create(coverprofile)
 	if err != nil {
+		return fmt.Errorf("sshRun: coverprofile: %s", err)
+	}
+	defer fi.Close()
+	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	log.Debug("create scp session 2")
+	scpClient2, err := scp.NewClientBySSH(conn)
+	if err != nil {
+		return fmt.Errorf("sshRun: create scp session 2: %s", err)
+	}
+	if err := scpClient2.CopyFromRemote(ctx, fi, tgtCoverprofile); err != nil {
 		return fmt.Errorf("sshRun: scp copy: %s", err)
 	}
 
-	cmd := []string{dstTestBinary}
-	cmd = append(cmd, self.GoTestFlag...)
-	log.Debug("ssh execute", "cmd", cmd)
-	if err := sess.Run(strings.Join(cmd, " ")); err != nil {
-		return fmt.Errorf("sshRun: %s", err)
-	}
 	return nil
 }
 
@@ -227,4 +277,10 @@ func parseSshConfig(rd io.Reader) ([]Host, error) {
 	}
 
 	return hosts, nil
+}
+
+// This function exists only to be called from the tests, to have a non-zero test
+// coverage and show that xprog brings back the coverprofile.
+func goos() string {
+	return runtime.GOOS
 }

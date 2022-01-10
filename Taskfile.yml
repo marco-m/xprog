@@ -15,10 +15,20 @@ tasks:
     cmds:
       - go test -count=1 -short -cover ./...
 
-  test:vm:
-    desc: Run the VM-based tests
+  test:vm:clean:
+    desc: Run the VM-based tests from a clean snapshot
     cmds:
-      - go test -count=1 -run 'Test.*VM$' -cover ./...
+      - vagrant snapshot restore pristine
+      - task: test:vm:dirty
+    env:
+      GOOS: linux
+
+  test:vm:dirty:
+    desc: Run the VM-based tests on the current filesystem (faster but inaccurate)
+    cmds:
+      - go test -count=1 -coverprofile=coverage.out -v -run 'Test.*VM$' -exec="bin/xprog -v ssh --cfg $PWD/ssh_config.vagrant --" ./...
+    env:
+      GOOS: linux
 
   test:all:
     desc: Run all the tests (get all coverage)
@@ -34,3 +44,13 @@ tasks:
     desc: Remove the build artifacts
     cmds:
       - rm -rf bin
+
+  prepare-vm:
+    cmds:
+    - vagrant destroy --force
+    - vagrant up
+    # Take snapshot, name `pristine`
+    - vagrant snapshot save pristine
+    # Generate a SSH configuration file
+    - vagrant ssh-config > ssh_config.vagrant
+    - vagrant halt

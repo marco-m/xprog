@@ -35,6 +35,7 @@ type CommonArgs struct {
 
 type DirectCmd struct {
 	CommonArgs
+	opts Opts
 }
 
 type HelpCmd struct{}
@@ -48,6 +49,11 @@ Generic usage from go test:
 Cross-compile the tests and run them on the target OS, connect via SSH:
 
     GOOS=linux go test -exec="xprog ssh [opts] --" <go-packages> [go-test-flags]
+
+As above, but collect also code coverage and show it on the host:
+
+    GOOS=linux go test -coverprofile=coverage.out -exec="xprog ssh [opts] --" <go-packages> [go-test-flags] &&
+    go tool cover -html=coverage.out
 
 To see xprog output, pass -v both to xprog and go test:
 
@@ -120,9 +126,10 @@ func parse(out io.Writer, args []string, config arg.Config, dests ...interface{}
 func runCommand(opts Opts) error {
 	cwd, err := os.Getwd()
 	if err != nil {
-		return fmt.Errorf("getting cwd: %s", err)
+		return fmt.Errorf("get cwd: %s", err)
 	}
-	opts.logger.Debug("started", "cwd", cwd)
+	opts.logger.Debug("start", "cwd", cwd)
+	defer opts.logger.Debug("terminate")
 
 	switch {
 	case opts.Help != nil:
@@ -142,10 +149,10 @@ func (self HelpCmd) Run(opts Opts) error {
 }
 
 func (self DirectCmd) Run(opts Opts) error {
-	if opts.Verbose {
-		fmt.Fprintln(opts.out, "direct:",
-			"testbinary:", self.TestBinary, "gotestflag:", self.GoTestFlag)
-	}
+	self.opts = opts
+	self.opts.logger.Debug("direct", "testbinary:", self.TestBinary,
+		"gotestflag:", self.GoTestFlag)
+
 	cmd := exec.Command(self.TestBinary, self.GoTestFlag...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout

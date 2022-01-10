@@ -10,6 +10,11 @@ Cross-compile the tests and run them on the target OS, connect via SSH:
 
     GOOS=linux go test -exec="xprog ssh [opts] --" <go-packages> [go-test-flags]
 
+As above, but collect also code coverage and show it on the host:
+
+    GOOS=linux go test -coverprofile=coverage.out -exec="xprog ssh [opts] --" <go-packages> [go-test-flags] &&
+    go tool cover -html=coverage.out
+
 To see xprog output, pass -v both to xprog and go test:
 
     go test -v -exec="xprog -v <command> [opts] --" <go-packages> [go-test-flags]
