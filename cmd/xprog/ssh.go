@@ -8,7 +8,6 @@ import (
 	"io"
 	"os"
 	"path"
-	"runtime"
 	"strings"
 	"time"
 
@@ -83,7 +82,8 @@ func (self *SshCmd) prepare() error {
 		Timeout: 1 * time.Second,
 		User:    user,
 		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(signer)},
+			ssh.PublicKeys(signer),
+		},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
@@ -125,10 +125,12 @@ func (self SshCmd) execute() error {
 		return fmt.Errorf("sshRun: scp TestBinary: %s", err)
 	}
 	defer fi.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	// FIXME
+	// ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// defer cancel()
+	ctx := context.Background()
 	if err := scpClient.CopyFromFile(ctx, *fi, dstTestBinary, "0755"); err != nil {
-		return fmt.Errorf("sshRun: scp copy: %s", err)
+		return fmt.Errorf("sshRun: scp copy TestBinary: %s", err)
 	}
 
 	// If "go test -coverprofile", adapt accordingly
@@ -153,7 +155,10 @@ func (self SshCmd) execute() error {
 	sess.Stdout = os.Stdout
 	sess.Stderr = os.Stderr
 
-	cmd := []string{dstTestBinary}
+	if self.addr == "" {
+		panic(`impossible: self.addr == ""`)
+	}
+	cmd := []string{dstTestBinary, "-xprog.target=" + self.addr}
 	cmd = append(cmd, self.GoTestFlag...)
 	log.Debug("ssh execute TestBinary", "cmd", cmd)
 	if err := sess.Run(strings.Join(cmd, " ")); err != nil {
@@ -174,7 +179,7 @@ func (self SshCmd) execute() error {
 		return fmt.Errorf("sshRun: coverprofile: %s", err)
 	}
 	defer fi.Close()
-	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	log.Debug("create scp session 2")
@@ -183,7 +188,7 @@ func (self SshCmd) execute() error {
 		return fmt.Errorf("sshRun: create scp session 2: %s", err)
 	}
 	if err := scpClient2.CopyFromRemote(ctx, fi, tgtCoverprofile); err != nil {
-		return fmt.Errorf("sshRun: scp copy: %s", err)
+		return fmt.Errorf("sshRun: scp copy coverprofile: %s", err)
 	}
 
 	return nil
@@ -277,10 +282,4 @@ func parseSshConfig(rd io.Reader) ([]Host, error) {
 	}
 
 	return hosts, nil
-}
-
-// This function exists only to be called from the tests, to have a non-zero test
-// coverage and show that xprog brings back the coverprofile.
-func goos() string {
-	return runtime.GOOS
 }

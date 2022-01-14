@@ -2,13 +2,21 @@
 
 ## Unreleased
 
-### Fixed
+### Fixes
 
-### Changed, breaking
+### Breaking changes
 
-### Changed
+- No outside impact: shuffled packages around to make it possible for client code to import the top-level module name (`import "github.com/marco-m/xprog"`).
+
+### Changes
+
+- Better documentation.
 
 ### New
+
+- Support to skip running destructive tests on the host, via function `xprog.Target()`, see explanation in README and examples in directory `examples`.
+
+- Add examples in directory `examples`, see also walk-through in README.
 
 ## [v0.1.0] - [2022-01-10]
 
