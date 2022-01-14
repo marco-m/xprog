@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-### Fixes
+## [v0.2.0] - [2022-01-14]
 
 ### Breaking changes
 
@@ -33,3 +33,4 @@
 
 [v0.0.1]: https://github.com/marco-m/xprog/releases/tag/v0.0.1
 [v0.1.0]: https://github.com/marco-m/xprog/releases/tag/v0.1.0
+[v0.2.0]: https://github.com/marco-m/xprog/releases/tag/v0.2.0
