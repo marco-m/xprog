@@ -1,5 +1,7 @@
 TODO.md
 bin/
 coverage.out
-ssh_config.vagrant
+ssh_config
 .vagrant/
+*.sublime-project
+*.sublime-workspace

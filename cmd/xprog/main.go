@@ -128,8 +128,8 @@ func runCommand(opts Opts) error {
 	if err != nil {
 		return fmt.Errorf("get cwd: %s", err)
 	}
-	opts.logger.Debug("start", "cwd", cwd)
-	defer opts.logger.Debug("terminate")
+	opts.logger.Debug("starting", "cwd", cwd)
+	defer opts.logger.Debug("terminating")
 
 	switch {
 	case opts.Help != nil:

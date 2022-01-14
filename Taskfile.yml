@@ -8,32 +8,23 @@ tasks:
   build:
     desc: Build all
     cmds:
-      - go build -o bin/xprog .
+      - go build -o bin/xprog ./cmd/xprog
 
   test:unit:
-    desc: Run the unit tests
+    desc: Run the unit tests on the host
     cmds:
-      - go test -count=1 -short -cover ./...
+      - go test -count=1 -short -coverprofile=coverage.out ./... -v
 
-  test:vm:clean:
-    desc: Run the VM-based tests from a clean snapshot
+  test:all:vm:clean:
+    desc: Run all the tests on a VM from a clean snapshot
     cmds:
       - vagrant snapshot restore pristine
-      - task: test:vm:dirty
-    env:
-      GOOS: linux
+      - task: test:all:vm:dirty
 
-  test:vm:dirty:
-    desc: Run the VM-based tests on the current filesystem (faster but inaccurate)
+  test:all:vm:dirty:
+    desc: Run all the tests on a VM on the current snapshot (thus dirty) (faster but inaccurate and flaky)
     cmds:
-      - go test -count=1 -coverprofile=coverage.out -v -run 'Test.*VM$' -exec="bin/xprog -v ssh --cfg $PWD/ssh_config.vagrant --" ./...
-    env:
-      GOOS: linux
-
-  test:all:
-    desc: Run all the tests (get all coverage)
-    cmds:
-      - go test -count=1 -coverprofile=coverage.out ./...
+      - GOOS=linux go test -count=1 -coverprofile=coverage.out -v -exec="$PWD/bin/xprog ssh --cfg $PWD/ssh_config --" ./...
 
   browser:
     desc: "Show code coverage in browser (usage: task test:all browser)"
@@ -52,5 +43,5 @@ tasks:
     # Take snapshot, name `pristine`
     - vagrant snapshot save pristine
     # Generate a SSH configuration file
-    - vagrant ssh-config > ssh_config.vagrant
+    - vagrant ssh-config > ssh_config
     - vagrant halt
