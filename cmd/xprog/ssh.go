@@ -125,14 +125,13 @@ func (self SshCmd) execute() error {
 		return fmt.Errorf("sshRun: scp TestBinary: %s", err)
 	}
 	defer fi.Close()
-	// FIXME
-	// ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	// defer cancel()
-	ctx := context.Background()
-	if err := scpClient.CopyFromFile(ctx, *fi, dstTestBinary, "0755"); err != nil {
-		return fmt.Errorf("sshRun: scp copy TestBinary: %s", err)
+	{
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := scpClient.CopyFromFile(ctx, *fi, dstTestBinary, "0755"); err != nil {
+			return fmt.Errorf("sshRun: scp copy TestBinary: %s", err)
+		}
 	}
-
 	// If "go test -coverprofile", adapt accordingly
 	var coverprofile, tgtCoverprofile string
 	for i, flag := range self.GoTestFlag {
@@ -179,18 +178,18 @@ func (self SshCmd) execute() error {
 		return fmt.Errorf("sshRun: coverprofile: %s", err)
 	}
 	defer fi.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
 	log.Debug("create scp session 2")
 	scpClient2, err := scp.NewClientBySSH(conn)
 	if err != nil {
 		return fmt.Errorf("sshRun: create scp session 2: %s", err)
 	}
-	if err := scpClient2.CopyFromRemote(ctx, fi, tgtCoverprofile); err != nil {
-		return fmt.Errorf("sshRun: scp copy coverprofile: %s", err)
+	{
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := scpClient2.CopyFromRemote(ctx, fi, tgtCoverprofile); err != nil {
+			return fmt.Errorf("sshRun: scp copy coverprofile: %s", err)
+		}
 	}
-
 	return nil
 }
 
