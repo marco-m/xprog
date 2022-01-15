@@ -63,7 +63,7 @@ On the other hand, we want to be sure that `Destructive` is tested ONLY on the V
 import "github.com/marco-m/xprog"
 
 func TestDestructiveXprog(t *testing.T) {
-    if xprog.Target() == "" {
+    if xprog.Absent() {
         t.Skip("skip: test requires xprog")
     }
     examples.Destructive()

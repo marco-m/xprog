@@ -17,7 +17,7 @@ func TestHarmless(t *testing.T) {
 // All destructive or invasive tests (test with side-effects) should be protected in this
 // way.
 func TestDestructiveXprog(t *testing.T) {
-	if xprog.Target() == "" {
+	if xprog.Absent() {
 		t.Skip("skip: test requires xprog")
 	}
 	examples.Destructive()

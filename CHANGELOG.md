@@ -1,10 +1,12 @@
 # xprog Changelog
 
-# Unreleased
+# [v0.3.0] - Unreleased
 
 ## New
 
 - ssh: add flag `--sudo` to run the test binary with sudo.
+- Function `xprog.Absent`: support skipping destructive tests on the host.
+  See explanation in README and examples in directory `examples` (supersedes function `xprog.Target`).
 
 # [v0.2.0] - [2022-01-14]
 
@@ -18,7 +20,8 @@
 
 ## New
 
-- Support to skip running destructive tests on the host, via function `xprog.Target()`, see explanation in README and examples in directory `examples`.
+- Function `xprog.Target`: support skipping destructive tests on the host.
+  See explanation in README and examples in directory `examples` (superseded by function `xprog.Absent` in v0.3.0).
 
 - Add examples in directory `examples`, see also walk-through in README.
 
@@ -38,3 +41,4 @@
 [v0.0.1]: https://github.com/marco-m/xprog/releases/tag/v0.0.1
 [v0.1.0]: https://github.com/marco-m/xprog/releases/tag/v0.1.0
 [v0.2.0]: https://github.com/marco-m/xprog/releases/tag/v0.2.0
+[v0.3.0]: https://github.com/marco-m/xprog/releases/tag/v0.3.0

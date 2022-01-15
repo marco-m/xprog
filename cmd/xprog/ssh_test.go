@@ -219,7 +219,7 @@ func TestHostGetDef(t *testing.T) {
 
 func TestSshCmdRunMock(t *testing.T) {
 	t.Skip("broken")
-	if xprog.Target() != "" {
+	if xprog.Absent() {
 		t.Skip("skip: cannot run under xprog")
 	}
 
