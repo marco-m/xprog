@@ -6,12 +6,14 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"runtime/debug"
 
 	"github.com/alexflint/go-arg"
 	"github.com/hashicorp/go-hclog"
 )
 
-var version = "unknown" // filled by the linker
+// Must be filled by the linker via build script until Go 1.18
+var version = "(devel)" // to match the default from runtime/debug
 
 type Opts struct {
 	Verbose bool `arg:"-v,--verbose" help:"verbosity level"`
@@ -106,6 +108,16 @@ func parse(out io.Writer, args []string, config arg.Config, dests ...interface{}
 		parser.WriteHelp(out)
 		return parseOK
 	case err == arg.ErrVersion:
+		// I am not sure this actually works???
+		// Courtesy of https://github.com/burrowers/garble/pull/220, waiting for Go 1.18
+		// don't overwrite the version if it was set by -ldflags=-X
+		if info, ok := debug.ReadBuildInfo(); ok && version == "(devel)" {
+			mod := &info.Main
+			if mod.Replace != nil {
+				mod = mod.Replace
+			}
+			version = mod.Version
+		}
 		fmt.Fprintln(out, "xprog version", version)
 		return parseOK
 	case err != nil:

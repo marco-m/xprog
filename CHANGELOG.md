@@ -7,6 +7,7 @@
 - ssh: add flag `--sudo` to run the test binary with sudo.
 - Function `xprog.Absent`: support skipping destructive tests on the host.
   See explanation in README and examples in directory `examples` (supersedes function `xprog.Target`).
+- Flag `--version` prints the xprog version.
 
 # [v0.2.0] - [2022-01-14]
 

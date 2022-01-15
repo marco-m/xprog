@@ -2,13 +2,15 @@
 
 version: '3'
 
-vars:
-
 tasks:
   build:
     desc: Build all
     cmds:
-      - go build -o bin/xprog ./cmd/xprog
+      - go build -ldflags="{{.LDFLAGS}}" -o bin/xprog ./cmd/xprog
+    vars:
+      VERSION:
+        sh: git describe --tags --long --dirty --always
+      LDFLAGS: -X main.version={{.VERSION}}
 
   test:unit:
     desc: Run the unit tests on the host
