@@ -23,7 +23,15 @@ To see `xprog` output, pass `-v` both to `xprog` and `go test`:
 $ go install github.com/marco-m/xprog/cmd/xprog@latest
 ```
 
-## Writing safe tests
+## Writing tests that will not harm YOUR host
+
+If you have at least one test that exercises a destructive or invasive function, it is of the utmost importance to ensure that running `go test` in the default Go way:
+
+```
+$ go test ./...
+```
+
+(maybe you forgot about xprog, or somebody new to the project) will not cause harm to the host system!
 
 Consider functions `Harmless` and `Destructive` ([examples/example.go](examples/example.go)):
 
@@ -89,6 +97,14 @@ hello from Destructive on linux
 PASS
 ok      github.com/marco-m/xprog/examples
 ```
+
+### Running tests as root
+
+To do this, be sure that the tests are **safe** to run everywhere (see section above).
+
+Then, add `--sudo` to the `ssh` command.
+
+This assumes a passwordless sudo on the target (what you get by default on a Vagrant VM).
 
 ## Usage
 
@@ -164,7 +180,7 @@ will run `xprog` in directory `./foo`. This is why it is important to specify th
 
 ### CLI flag `-xprog.target=<URL>`
 
-`xprog` allows to write safe tests for destructive operations (see section [Writing safe tests](#writing-safe-tests)) by adding the CLI flag `-xprog.target=<URL>` to the invocation of the test binary generated under the hood by `go test`.
+`xprog` allows to write safe tests for destructive operations (see section [Writing tests that will not harm YOUR host](#writing-tests-that-will-not-harm-your-host)) by adding the CLI flag `-xprog.target=<URL>` to the invocation of the test binary generated under the hood by `go test`.
 
 This means that each test package run by `xprog`, also if it doesn't contain any destructive tests, still needs to include
 

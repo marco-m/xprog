@@ -18,6 +18,7 @@ import (
 type SshCmd struct {
 	CommonArgs
 	SshConfig string `arg:"--cfg,required" help:"path to a ssh_config file"`
+	Sudo      bool   `help:"run the test binary with sudo"`
 	//
 	opts   Opts
 	sshCfg ssh.ClientConfig
@@ -157,7 +158,11 @@ func (self SshCmd) execute() error {
 	if self.addr == "" {
 		panic(`impossible: self.addr == ""`)
 	}
-	cmd := []string{dstTestBinary, "-xprog.target=" + self.addr}
+	var cmd []string
+	if self.Sudo {
+		cmd = append(cmd, "sudo")
+	}
+	cmd = append(cmd, dstTestBinary, "-xprog.target="+self.addr)
 	cmd = append(cmd, self.GoTestFlag...)
 	log.Debug("ssh execute TestBinary", "cmd", cmd)
 	if err := sess.Run(strings.Join(cmd, " ")); err != nil {
