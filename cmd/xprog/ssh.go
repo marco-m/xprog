@@ -145,6 +145,9 @@ func (self SshCmd) execute() error {
 		}
 	}
 
+	//
+	// Execute the test binary.
+	//
 	log.Debug("create ssh session")
 	sess, err := conn.NewSession()
 	if err != nil {
@@ -155,14 +158,11 @@ func (self SshCmd) execute() error {
 	sess.Stdout = os.Stdout
 	sess.Stderr = os.Stderr
 
-	if self.addr == "" {
-		panic(`impossible: self.addr == ""`)
-	}
-	var cmd []string
+	cmd := []string{"XPROG_SYS_TARGET=" + self.addr}
 	if self.Sudo {
-		cmd = append(cmd, "sudo")
+		cmd = append(cmd, "sudo", " --preserve-env=XPROG_SYS_TARGET")
 	}
-	cmd = append(cmd, dstTestBinary, "-xprog.target="+self.addr)
+	cmd = append(cmd, dstTestBinary)
 	cmd = append(cmd, self.GoTestFlag...)
 	log.Debug("ssh execute TestBinary", "cmd", cmd)
 	if err := sess.Run(strings.Join(cmd, " ")); err != nil {
