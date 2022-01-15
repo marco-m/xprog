@@ -1,7 +1,11 @@
 # xprog Changelog
 
+# Unreleased
 
-# [v0.3.0] - Unreleased
+...
+
+
+# [v0.3.0] - 2022-01-15
 
 ## New
 
@@ -16,7 +20,7 @@
   This makes the signaling less intrusive and especially removes the requirement to add `import _ "github.com/marco-m/xprog"` in certain cases.
 
 
-# [v0.2.0] - [2022-01-14]
+# [v0.2.0] - 2022-01-14
 
 ## New
 
@@ -34,14 +38,14 @@
 - Better documentation.
 
 
-# [v0.1.0] - [2022-01-10]
+# [v0.1.0] - 2022-01-10
 
 ## New
 
 - Support collecting code coverage when invoked from `go test -coverprofile`. This means that one can then call `go tool cover -html` on the host :-)
 
 
-# [v0.0.1] - [2022-01-06]
+# [v0.0.1] - 2022-01-06
 
 ## New
 
